@@ -9,7 +9,7 @@ use futures::StreamExt;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::io;
 use std::str;
-const MAX: usize = 8 * 1024 * 1024;
+const MAX_WHAT: usize = 8 * 1024 * 1024;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct NetstringCodec;
@@ -27,7 +27,7 @@ impl Decoder for NetstringCodec {
         length_bytes.copy_from_slice(&src[..4]);
         let length = u32::from_le_bytes(length_bytes) as usize;
 
-        if length > MAX {
+        if length > MAX_WHAT {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Frame of length {} is too large.", length)
@@ -52,7 +52,7 @@ impl Encoder<Bytes> for NetstringCodec {
 
     fn encode(&mut self, item: Bytes, dst: &mut BytesMut) -> Result<(), Self::Error> {
 
-        if item.len() > MAX {
+        if item.len() > MAX_WHAT {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Frame of length {} is too large.", item.len())
@@ -73,7 +73,7 @@ impl Encoder<String> for NetstringCodec {
     type Error = std::io::Error;
 
     fn encode(&mut self, item: String, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        if item.len() > MAX {
+        if item.len() > MAX_WHAT {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Frame of length {} is too large.", item.len())
