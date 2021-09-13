@@ -64,7 +64,7 @@ fn message_encode() -> anyhow::Result<()> {
     use tokio_util::codec::Encoder;
     use bytes::BufMut;
 
-    let data = "data".as_bytes();
+    let data = b"data";
     let mut netstring_codec = NetstringCodec;
     let mut output = BytesMut::new();
     let mut message = bytes::BytesMut::new();
