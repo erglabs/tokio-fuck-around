@@ -41,7 +41,7 @@ impl Decoder for NetstringCodec {
 
         let out = src.split_to(4);
         let out = src.split_to(length);
-        println!("dcode {{ size={}, data={} }}", length, str::from_utf8(&src).unwrap());
+        tracing::info!("dcode {{ size={}, data={} }}", length, str::from_utf8(&src).unwrap());
         Ok(Some(out))
     }
 }
@@ -64,7 +64,7 @@ impl Encoder<Bytes> for NetstringCodec {
 
         dst.extend_from_slice(&len_slice);
         dst.extend_from_slice(&item);
-        println!("encode {{ size={}, data={} }}", item.len(), str::from_utf8(&item).unwrap());
+        tracing::info!("encode {{ size={}, data={} }}", item.len(), str::from_utf8(&item).unwrap());
         Ok(())
     }
 }
@@ -84,7 +84,7 @@ impl Encoder<String> for NetstringCodec {
 
         dst.extend_from_slice(&len_slice);
         dst.extend_from_slice(&item.as_bytes());
-        println!("encode {{ size={}, data={} }}", item.len(), item);
+        tracing::info!("encode {{ size={}, data={} }}", item.len(), item);
         Ok(())
     }
 }

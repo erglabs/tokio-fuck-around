@@ -6,7 +6,7 @@ use tokio_util::codec::Framed;
 use futures::SinkExt;
 use anyhow::Result;
 use clap::App;
-
+use tracing;
 pub mod tokio_netstring;
 use tokio_netstring::NetstringCodec;
 
@@ -18,8 +18,7 @@ async fn main() -> anyhow::Result<()> {
     if matches.is_present("server") {
         let socket = TcpListener::bind(&addr).await?;
         loop {
-            let (connection, clientaddr) = socket.accept().await?;
-            // let mut transport = tokio_util::codec::Framed::new(connection, tokio_netstring::NetstringCodec);    
+            let (connection, clientaddr) = socket.accept().await?; 
             tokio::spawn(async move {
                 handle_connection(connection, clientaddr).await;
             });
@@ -42,16 +41,16 @@ async fn server_process(transport: &mut Framed<TcpStream, NetstringCodec>, m: &B
 }
 
 async fn handle_connection(connection: TcpStream, connection_address: SocketAddr) {
-    println!("conenction from {}, handling", connection_address);
+    tracing::info!("conenction from {}, handling", connection_address);
     let mut transport = tokio_util::codec::Framed::new(connection, tokio_netstring::NetstringCodec);
     loop {
         while let Some(res) = transport.next().await {
             match res {
-                Err(e) => println!("got error {}", e),
+                Err(e) => tracing::error!("got error {}", e),
                 Ok(m) => {
                     match server_process(&mut transport, &m.freeze()).await {
                         Ok(()) => (),
-                        Err(e) => println!("error encountered {}", e),
+                        Err(e) => tracing::error!("error encountered {}", e),
                     }
                 }
             }
