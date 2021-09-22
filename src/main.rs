@@ -1,8 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bytes::{Bytes, BytesMut};
 use clap::App;
+use futures::stream::SplitSink;
+use futures::SinkExt;
 use futures::StreamExt;
-use futures::{Future, FutureExt, SinkExt};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -39,13 +40,15 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn server_process(
-    transport: &mut Framed<TcpStream, NetstringCodec>,
+    transport: &mut SplitSink<Framed<TcpStream, NetstringCodec>, String>,
     m: &Bytes,
 ) -> Result<()> {
     let mut buf = BytesMut::with_capacity(m.len() + 20);
     buf.extend_from_slice(&m);
     buf.extend_from_slice(b" <- got this, i am echoing!");
-    transport.send(buf.freeze()).await?;
+    transport
+        .send(String::from_utf8_lossy(&m[..]).to_string())
+        .await?;
     Ok(())
 }
 
@@ -56,39 +59,32 @@ async fn handle_connection(connection: TcpStream, connection_address: SocketAddr
         NetworkError(anyhow::Error),
     }
 
-    // transport (getting and sending at diff. times)
-    //
-    // Ingest
-    // XXXX ____ XXXX ____
-    // Send
-    // ____ XXXX ____ ____
-
     println!("connection from {}, handling", connection_address);
-    let mut transport = tokio_util::codec::Framed::new(connection, tokio_netstring::NetstringCodec);
-    let (mut sink, mut stream): (tokio_util::codec::Fram) = transport.split();
-    let mut events = stream.map(|res| match res {
+    let heartbeat = IntervalStream::new(tokio::time::interval(Duration::from_secs(60)))
+        .map(|_| ConnectionEvent::Heartbeat);
+    let transport = tokio_util::codec::Framed::new(connection, tokio_netstring::NetstringCodec);
+    let (mut sink, stream) = transport.split::<String>();
+    let events = stream.map(|res| match res {
         Ok(event) => ConnectionEvent::NetworkEvent(event),
         Err(err) => {
             ConnectionEvent::NetworkError(anyhow::anyhow!("Network error occurred: {}", err))
         }
     });
-    let heartbeat = IntervalStream::new(tokio::time::interval(Duration::from_secs(60)))
-        .map(|_| ConnectionEvent::Heartbeat);
 
-    let merged_events = tokio_stream::StreamExt::merge(events, heartbeat);
+    let mut merged_events = tokio_stream::StreamExt::merge(events, heartbeat);
 
     loop {
         while let Some(res) = merged_events.next().await {
             match res {
                 ConnectionEvent::NetworkEvent(event) => {
-                    match server_process(&mut transport, &event.freeze()).await {
+                    match server_process(&mut sink, &event.freeze()).await {
                         Ok(()) => (),
                         Err(e) => eprintln!("error encountered {}", e),
                     }
                 }
                 ConnectionEvent::NetworkError(error) => eprintln!("got error: {}", error),
                 ConnectionEvent::Heartbeat => {
-                    match server_process(&mut transport, &Default::default()).await {
+                    match server_process(&mut sink, &Default::default()).await {
                         Ok(()) => (),
                         Err(e) => eprintln!("error encountered {}", e),
                     }
