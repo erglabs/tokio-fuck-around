@@ -15,9 +15,9 @@ serde_derive = "1.0"
 hex = "0.4"
 lazy_static = "1.4"
 snow = { version = "0.8.0", features = ["default-resolver"] }
-tokio = { version = "1.0.0", features = ["full", "tracing"] }
+tokio = { version = "1.0.0", features = ["full", "tracing", "time"] }
 tokio-util = { version = "0.6.3", features = ["full"] }
-tokio-stream = { version = "0.1" }
+tokio-stream = { version = "0.1", features = ["time"] }
 tokio-io = "*"
 tokio-net = "*"
 tracing = "0.1"
