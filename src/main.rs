@@ -44,7 +44,7 @@ fn server_process(transport: Pin<&mut SplitSink<Framed<TcpStream, NetstringCodec
     let mut buf = BytesMut::with_capacity(m.len() + 20);
     buf.extend_from_slice(&m);
     buf.extend_from_slice(b" <- got this, i am echoing!");
-    transport.start_send(buf.freeze());
+    transport.start_send(buf.freeze()).unwrap();
     Ok(())
 }
 
@@ -59,8 +59,8 @@ impl Future for Receiver {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         while let Poll::Ready(res) = Pin::new(&mut self.stream).poll_next(cx) {
-            let Some(res) = res else { continue };
-            let Ok(x) = res else { continue };
+            let Some(res) = res else { println!("res None"); break };
+            let Ok(x) = res else { println!("res Err"); break };
             eprintln!("received {:?}", x);
             server_process(Pin::new(&mut self.sink), &x.freeze(), cx);
         }
